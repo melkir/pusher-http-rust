@@ -1,6 +1,10 @@
-use hyper::client::connect::Connect;
-use hyper::client::HttpConnector;
-use hyper::Client;
+use hyper_util::{
+    client::legacy::{
+        connect::{Connect, HttpConnector},
+        Client,
+    },
+    rt::TokioExecutor,
+};
 use std::env;
 use std::fmt::Debug;
 use url::Url;
@@ -30,7 +34,7 @@ pub struct Pusher<C> {
     /// If true, requests are made over HTTPS.
     pub secure: bool,
     /// The underlying Hyper HTTP client.
-    pub http_client: Client<C>,
+    pub http_client: Client<C, String>,
 }
 
 /// An ephemeral object upon which to pass configuration options to when
@@ -41,7 +45,7 @@ pub struct PusherBuilder<C> {
     pub secret: String,
     pub host: String,
     pub secure: bool,
-    pub http_client: Client<C>,
+    pub http_client: Client<C, String>,
 }
 
 impl PusherBuilder<HttpConnector> {
@@ -59,7 +63,7 @@ impl PusherBuilder<HttpConnector> {
     /// let pusher = PusherBuilder::new("id", "key", "secret").host("foo.bar.com").finalize();
     /// ```
     pub fn new(app_id: &str, key: &str, secret: &str) -> PusherBuilder<HttpConnector> {
-        let http_client = Client::new();
+        let http_client = Client::builder(TokioExecutor::new()).build_http();
         PusherBuilder::new_with_client(http_client, app_id, key, secret)
     }
 
@@ -76,7 +80,7 @@ impl PusherBuilder<HttpConnector> {
     /// PusherBuilder::from_url("http://key:secret@api.host.com/apps/id").finalize();
     /// ```
     pub fn from_url(url: &str) -> PusherBuilder<HttpConnector> {
-        let http_client = Client::new();
+        let http_client = Client::builder(TokioExecutor::new()).build_http();
         PusherBuilder::from_url_with_client(http_client, url)
     }
 
@@ -93,7 +97,7 @@ impl PusherBuilder<HttpConnector> {
     /// Pusher::from_env("PUSHER_URL").finalize();
     /// ```
     pub fn from_env(key: &str) -> PusherBuilder<HttpConnector> {
-        let http_client = Client::new();
+        let http_client = Client::builder(TokioExecutor::new()).build_http();
         PusherBuilder::from_env_with_client(http_client, key)
     }
 }
@@ -102,7 +106,7 @@ impl<C> PusherBuilder<C> {
     /// Initializes the client with a specified hyper::client::connect::Connect.
     /// See pusher::PusherBuilder::new for more detail.
     pub fn new_with_client(
-        http_client: Client<C>,
+        http_client: Client<C, String>,
         app_id: &str,
         key: &str,
         secret: &str,
@@ -119,7 +123,7 @@ impl<C> PusherBuilder<C> {
 
     /// Initializes the client with a specified hyper::client::connect::Connect.
     /// See pusher::PusherBuilder::from_url for more detail.
-    pub fn from_url_with_client(http_client: Client<C>, url: &str) -> PusherBuilder<C> {
+    pub fn from_url_with_client(http_client: Client<C, String>, url: &str) -> PusherBuilder<C> {
         let pusher_url = Url::parse(url).unwrap();
 
         let key = pusher_url.username();
@@ -141,7 +145,7 @@ impl<C> PusherBuilder<C> {
 
     /// Initializes the client with a specified hyper::client::connect::Connect.
     /// See pusher::PusherBuilder::from_env for more detail.
-    pub fn from_env_with_client(http_client: Client<C>, key: &str) -> PusherBuilder<C> {
+    pub fn from_env_with_client(http_client: Client<C, String>, key: &str) -> PusherBuilder<C> {
         let url_opt = env::var_os(key).unwrap();
         let os_url = url_opt.to_str();
         let url = os_url.unwrap();
@@ -183,7 +187,7 @@ impl<C> PusherBuilder<C> {
 
     /// If you wish to configure a [Hyper client](http://hyper.rs/hyper/hyper/client/struct.Client.html),
     /// pass it in to this method.
-    pub fn client(mut self, http_client: Client<C>) -> PusherBuilder<C> {
+    pub fn client(mut self, http_client: Client<C, String>) -> PusherBuilder<C> {
         self.http_client = http_client;
         self
     }

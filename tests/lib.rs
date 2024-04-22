@@ -6,7 +6,8 @@ extern crate tokio;
 #[macro_use]
 extern crate yup_hyper_mock;
 
-use hyper::{Client, StatusCode};
+use hyper::StatusCode;
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use pusher::{Error, PusherBuilder};
 
 mock_connector!(BadRequest {
@@ -46,7 +47,7 @@ mock_connector!(ChannelUsersRequest {
 
 #[tokio::test]
 async fn test_error_response_handler() {
-    let client = Client::builder().build(BadRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(BadRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -65,7 +66,7 @@ async fn test_error_response_handler() {
 
 #[tokio::test]
 async fn test_eb_trigger() {
-    let client = Client::builder().build(TriggerEBTest::default());
+    let client = Client::builder(TokioExecutor::new()).build(TriggerEBTest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -79,7 +80,7 @@ async fn test_eb_trigger() {
 
 #[tokio::test]
 async fn test_get_channels() {
-    let client = Client::builder().build(ChannelsRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(ChannelsRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -94,7 +95,7 @@ async fn test_get_channels() {
 
 #[tokio::test]
 async fn test_get_channel() {
-    let client = Client::builder().build(ChannelRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(ChannelRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -110,7 +111,7 @@ async fn test_get_channel() {
 
 #[tokio::test]
 async fn test_get_channel_users() {
-    let client = Client::builder().build(ChannelUsersRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(ChannelUsersRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();

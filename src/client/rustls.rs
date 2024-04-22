@@ -1,30 +1,20 @@
-use hyper::{client::HttpConnector, Client};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use rustls::{ClientConfig, OwnedTrustAnchor};
+use hyper_util::{
+    client::legacy::{connect::HttpConnector, Client},
+    rt::TokioExecutor,
+};
+use rustls::RootCertStore;
 
 use crate::PusherBuilder;
 
 type Connector = HttpsConnector<HttpConnector>;
 
-fn default_client() -> Client<Connector> {
-    let mut root_cert_store = rustls::RootCertStore::empty();
-
-    let trust_anchors = webpki_roots::TLS_SERVER_ROOTS.iter().map(|trust_anchor| {
-        OwnedTrustAnchor::from_subject_spki_name_constraints(
-            trust_anchor.subject,
-            trust_anchor.spki,
-            trust_anchor.name_constraints,
-        )
-    });
-
-    root_cert_store.add_trust_anchors(trust_anchors);
-
-    let client_config = ClientConfig::builder()
-        .with_safe_default_cipher_suites()
-        .with_safe_default_kx_groups()
-        .with_protocol_versions(rustls::ALL_VERSIONS)
-        .expect("All versions to be allowed")
-        .with_root_certificates(root_cert_store)
+fn default_client() -> Client<Connector, String> {
+    let root_store = RootCertStore {
+        roots: webpki_roots::TLS_SERVER_ROOTS.into(),
+    };
+    let client_config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_store)
         .with_no_client_auth();
 
     let connector = HttpsConnectorBuilder::new()
@@ -32,7 +22,7 @@ fn default_client() -> Client<Connector> {
         .https_only()
         .enable_http1()
         .build();
-    Client::builder().build(connector)
+    Client::builder(TokioExecutor::new()).build(connector)
 }
 
 impl PusherBuilder<Connector> {

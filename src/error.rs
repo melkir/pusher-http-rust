@@ -18,6 +18,8 @@ pub enum Error {
     Http(#[from] hyper::http::Error),
     #[error(transparent)]
     Hyper(#[from] hyper::Error),
+    #[error(transparent)]
+    HyperUtil(#[from] hyper_util::client::legacy::Error),
     #[error("Server responded with {0} - {1}")]
     Response(StatusCode, String),
 }
