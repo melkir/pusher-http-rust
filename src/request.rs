@@ -1,17 +1,19 @@
 use bytes::Buf;
-use hyper::body;
-use hyper::client::connect::Connect;
+use http_body_util::BodyExt;
 use hyper::header::CONTENT_TYPE;
-use hyper::{Body, Client, StatusCode, Uri};
+use hyper::{StatusCode, Uri};
+use hyper_util::client::legacy::{connect::Connect, Client};
 use std::io::Read;
 use std::str::FromStr;
 
+use crate::Error;
+
 pub async fn send_request<C, T>(
-    client: &Client<C>,
+    client: &Client<C, String>,
     method: &str,
     request_url: url::Url,
     data: Option<String>,
-) -> Result<T, String>
+) -> Result<T, Error>
 where
     C: Connect + Clone + Send + Sync + 'static,
     T: serde::de::DeserializeOwned,
@@ -22,14 +24,13 @@ where
         .uri(request_uri)
         .header(CONTENT_TYPE, "application/json");
     let request = match data {
-        Some(body) => request_builder.body(Body::from(body)),
-        None => request_builder.body(Body::empty()),
-    }
-    .unwrap();
+        Some(body) => request_builder.body(body)?,
+        None => request_builder.body(String::new())?,
+    };
 
-    let response = client.request(request).await.unwrap();
+    let response = client.request(request).await?;
     let status = response.status();
-    let mut body_reader = body::aggregate(response).await.unwrap().reader();
+    let mut body_reader = response.collect().await?.aggregate().reader();
 
     match status {
         StatusCode::OK => {
@@ -39,7 +40,7 @@ where
         _ => {
             let mut body = String::new();
             body_reader.read_to_string(&mut body).unwrap();
-            Err(format!("Error: {}. {}", status, body))
+            Err(Error::Response(status, body))
         }
     }
 }

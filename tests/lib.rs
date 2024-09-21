@@ -6,8 +6,9 @@ extern crate tokio;
 #[macro_use]
 extern crate yup_hyper_mock;
 
-use hyper::Client;
-use pusher::PusherBuilder;
+use hyper::StatusCode;
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
+use pusher::{Error, PusherBuilder};
 
 mock_connector!(BadRequest {
     "http://127.0.0.1" =>       "HTTP/1.1 400 Bad Request\r\n\
@@ -46,7 +47,7 @@ mock_connector!(ChannelUsersRequest {
 
 #[tokio::test]
 async fn test_error_response_handler() {
-    let client = Client::builder().build(BadRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(BadRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -57,12 +58,15 @@ async fn test_error_response_handler() {
     let res = pusher
         .channel_with_options("this_is_not_a_presence_channel", query_params)
         .await;
-    assert_eq!(res.unwrap_err(), "Error: 400 Bad Request. Cannot retrieve the user count unless the channel is a presence channel")
+    assert!(matches!(
+        res,
+        Err(Error::Response(StatusCode::BAD_REQUEST, _))
+    ));
 }
 
 #[tokio::test]
 async fn test_eb_trigger() {
-    let client = Client::builder().build(TriggerEBTest::default());
+    let client = Client::builder(TokioExecutor::new()).build(TriggerEBTest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -76,7 +80,7 @@ async fn test_eb_trigger() {
 
 #[tokio::test]
 async fn test_get_channels() {
-    let client = Client::builder().build(ChannelsRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(ChannelsRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -91,7 +95,7 @@ async fn test_get_channels() {
 
 #[tokio::test]
 async fn test_get_channel() {
-    let client = Client::builder().build(ChannelRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(ChannelRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
@@ -107,7 +111,7 @@ async fn test_get_channel() {
 
 #[tokio::test]
 async fn test_get_channel_users() {
-    let client = Client::builder().build(ChannelUsersRequest::default());
+    let client = Client::builder(TokioExecutor::new()).build(ChannelUsersRequest::default());
     let pusher = PusherBuilder::new_with_client(client, "1", "2", "3")
         .host("127.0.0.1")
         .finalize();
